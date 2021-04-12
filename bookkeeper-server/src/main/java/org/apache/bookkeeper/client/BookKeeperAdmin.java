@@ -1494,7 +1494,7 @@ public class BookKeeperAdmin implements AutoCloseable {
             BKAuditException, TimeoutException, BKException {
         if (getAvailableBookies().contains(bookieAddress) || getReadOnlyBookies().contains(bookieAddress)) {
             LOG.error("Bookie: {} is not shutdown yet", bookieAddress);
-            throw BKException.create(BKException.Code.IllegalOpException);
+            //throw BKException.create(BKException.Code.IllegalOpException);
         }
 
         triggerAudit();
