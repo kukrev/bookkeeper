@@ -67,12 +67,14 @@ class LedgerDirsMonitor {
     }
 
     private void check(final LedgerDirsManager ldm) {
+        LOG.info("Enter checking ledger dirs.");
         final ConcurrentMap<File, Float> diskUsages = ldm.getDiskUsages();
         try {
             List<File> writableDirs = ldm.getWritableLedgerDirs();
             // Check all writable dirs disk space usage.
             for (File dir : writableDirs) {
                 try {
+                    LOG.info("Checking dir {}.", dir.getPath());
                     diskUsages.put(dir, diskChecker.checkDir(dir));
                 } catch (DiskErrorException e) {
                     LOG.error("Ledger directory {} failed on disk checking : ", dir, e);
@@ -101,6 +103,7 @@ class LedgerDirsMonitor {
                     ldm.addToFilledDirs(dir);
                 }
             }
+            diskUsages.forEach((k, v) -> LOG.info("Result from checking disk usages: dir: {}, usage: {}.", k, v));
             // Let's get NoWritableLedgerDirException without waiting for the next iteration
             // in case we are out of writable dirs
             // otherwise for the duration of {interval} we end up in the state where

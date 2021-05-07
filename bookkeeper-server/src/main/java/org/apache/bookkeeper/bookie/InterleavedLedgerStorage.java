@@ -211,6 +211,7 @@ public class InterleavedLedgerStorage implements CompactableLedgerStorage, Entry
 
             @Override
             public void diskAlmostFull(File disk) {
+                LOG.info("Running diskAlmostFull");
                 if (gcThread.isForceGCAllowWhenNoSpace) {
                     gcThread.enableForceGC();
                 } else {
@@ -220,6 +221,7 @@ public class InterleavedLedgerStorage implements CompactableLedgerStorage, Entry
 
             @Override
             public void diskFull(File disk) {
+                LOG.info("Running diskFull");
                 if (gcThread.isForceGCAllowWhenNoSpace) {
                     gcThread.enableForceGC();
                 } else {
@@ -230,6 +232,7 @@ public class InterleavedLedgerStorage implements CompactableLedgerStorage, Entry
 
             @Override
             public void allDisksFull(boolean highPriorityWritesAllowed) {
+                LOG.info("Running allDisksFull");
                 if (gcThread.isForceGCAllowWhenNoSpace) {
                     gcThread.enableForceGC();
                 } else {
@@ -240,6 +243,7 @@ public class InterleavedLedgerStorage implements CompactableLedgerStorage, Entry
 
             @Override
             public void diskWritable(File disk) {
+                LOG.info("Running diskWritable");
                 // we have enough space now
                 if (gcThread.isForceGCAllowWhenNoSpace) {
                     // disable force gc.
@@ -253,6 +257,7 @@ public class InterleavedLedgerStorage implements CompactableLedgerStorage, Entry
 
             @Override
             public void diskJustWritable(File disk) {
+                LOG.info("Running diskJustWritable");
                 if (gcThread.isForceGCAllowWhenNoSpace) {
                     // if a disk is just writable, we still need force gc.
                     gcThread.enableForceGC();

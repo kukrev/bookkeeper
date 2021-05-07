@@ -145,8 +145,11 @@ public class DiskChecker {
     @VisibleForTesting
     float checkDiskFull(File dir) throws DiskOutOfSpaceException, DiskWarnThresholdException {
         if (null == dir) {
+            LOG.info("checkDiskFull with null dir!.");
             return 0f;
         }
+
+        LOG.info("checkDiskFull for dir {}.", dir.getPath());
         if (dir.exists()) {
             long usableSpace = dir.getUsableSpace();
             long totalSpace = dir.getTotalSpace();

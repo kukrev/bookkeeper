@@ -316,6 +316,7 @@ public class GarbageCollectorThread extends SafeRunnable {
     }
 
     public void runWithFlags(boolean force, boolean suspendMajor, boolean suspendMinor) {
+        LOG.info("Garbage collector runWithFlags: force {}, suspendMajor {}, suspendMinor {}.", force, suspendMajor, suspendMinor);
         long threadStart = MathUtils.nowInNano();
         if (force) {
             LOG.info("Garbage collector thread forced to perform GC before expiry of wait time.");
@@ -384,6 +385,7 @@ public class GarbageCollectorThread extends SafeRunnable {
      * Garbage collect those entry loggers which are not associated with any active ledgers.
      */
     private void doGcEntryLogs() {
+        LOG.info("Running doGcEntryLogs");
         // Get a cumulative count, don't update until complete
         AtomicLong totalEntryLogSizeAcc = new AtomicLong(0L);
 
@@ -538,15 +540,18 @@ public class GarbageCollectorThread extends SafeRunnable {
         // by 1 when the log fills up and we roll to a new one.
         long curLogId = entryLogger.getLeastUnflushedLogId();
         boolean hasExceptionWhenScan = false;
+        LOG.info("Running extractMetaFromEntryLogs: scannedLogId {}, curLogId {}", scannedLogId, curLogId);
         for (long entryLogId = scannedLogId; entryLogId < curLogId; entryLogId++) {
             // Comb the current entry log file if it has not already been extracted.
             if (entryLogMetaMap.containsKey(entryLogId)) {
+                LOG.info("entryLogId {} already in entryLogMetaMap, skipping", entryLogId);
                 continue;
             }
 
             // check whether log file exists or not
             // if it doesn't exist, this log file might have been garbage collected.
             if (!entryLogger.logExists(entryLogId)) {
+                LOG.info("entryLogId {} does not exist in entryLogger, skipping", entryLogId);
                 continue;
             }
 
@@ -557,8 +562,10 @@ public class GarbageCollectorThread extends SafeRunnable {
                 EntryLogMetadata entryLogMeta = entryLogger.getEntryLogMetadata(entryLogId);
                 removeIfLedgerNotExists(entryLogMeta);
                 if (entryLogMeta.isEmpty()) {
+                    LOG.info("entryLogMeta {} is empty", entryLogId);
                     entryLogger.removeEntryLog(entryLogId);
                 } else {
+                    LOG.info("entryLogMeta {} is not empty, adding it to entryLogMetaMap {}", entryLogId, entryLogMetaMap);
                     entryLogMetaMap.put(entryLogId, entryLogMeta);
                 }
             } catch (IOException e) {
