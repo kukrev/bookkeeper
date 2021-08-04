@@ -637,8 +637,11 @@ public class GarbageCollectorThread extends SafeRunnable {
      * In this case, we force rotating the current last entry log to unblock GC.
      */
     private void rotateLeastUnflushedLogIfNeeded(long curLogId, boolean entryLogsDeletedByGC) {
-        if (conf.isEntryLogPerLedgerEnabled() && !entryLogsDeletedByGC
-                && !entryLogger.getLedgerDirsManager().getFullFilledLedgerDirs().isEmpty()) {
+        boolean emptyFilledLedgerDirs = entryLogger.getLedgerDirsManager().getFullFilledLedgerDirs().isEmpty();
+        LOG.info("rotateLeastUnflushedLogIfNeeded: curLogId={}, entryLogsDeletedByGC={}, emptyFilledLedgerDirs={}",
+                curLogId, entryLogsDeletedByGC, emptyFilledLedgerDirs);
+        if (conf.isEntryLogPerLedgerEnabled() && !entryLogsDeletedByGC && !emptyFilledLedgerDirs) {
+            LOG.info("rotateLeastUnflushedLogIfNeeded: rotating log {}", curLogId);
             entryLogger.recentlyCreatedEntryLogsStatus.flushRotatedEntryLog(curLogId);
         }
     }
