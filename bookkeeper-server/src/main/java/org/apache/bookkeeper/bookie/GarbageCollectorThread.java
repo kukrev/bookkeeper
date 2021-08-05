@@ -625,8 +625,8 @@ public class GarbageCollectorThread extends SafeRunnable {
                 ++scannedLogId;
             }
         }
-        // Check if we need to unblock GC by rotating curLogId when EntryLogPerLedger is enabled.
-        rotateLeastUnflushedLogIfNeeded(curLogId, scannedLogId - initialScannedLogId > 0);
+        // Check if we need to unblock GC by flushing curLogId when EntryLogPerLedger is enabled.
+        flushRotatedEntryLogIfNeeded(curLogId, scannedLogId - initialScannedLogId > 0);
         return entryLogMetaMap;
     }
 
@@ -634,14 +634,12 @@ public class GarbageCollectorThread extends SafeRunnable {
      * When EntryLogPerLedger is enabled, multiple ledgers may write data at different rates.
      * As the GC thread removes entry logs sequentially by ID, a slow-growing entry log may
      * block the progress of GC, while other entry logs continue to fill up the ledger drive.
-     * In this case, we force rotating the current last entry log to unblock GC.
+     * In this case, we force flushing the current un-flushed entry log to unblock GC.
      */
-    private void rotateLeastUnflushedLogIfNeeded(long curLogId, boolean entryLogsDeletedByGC) {
+    private void flushRotatedEntryLogIfNeeded(long curLogId, boolean entryLogsDeletedByGC) {
         boolean emptyFilledLedgerDirs = entryLogger.getLedgerDirsManager().getFullFilledLedgerDirs().isEmpty();
-        LOG.info("rotateLeastUnflushedLogIfNeeded: curLogId={}, entryLogsDeletedByGC={}, emptyFilledLedgerDirs={}",
-                curLogId, entryLogsDeletedByGC, emptyFilledLedgerDirs);
         if (conf.isEntryLogPerLedgerEnabled() && !entryLogsDeletedByGC && !emptyFilledLedgerDirs) {
-            LOG.info("rotateLeastUnflushedLogIfNeeded: rotating log {}", curLogId);
+            LOG.warn("Forcing flush of entryLogId {} as it may be blocking GC progress.", curLogId);
             entryLogger.recentlyCreatedEntryLogsStatus.flushRotatedEntryLog(curLogId);
         }
     }
