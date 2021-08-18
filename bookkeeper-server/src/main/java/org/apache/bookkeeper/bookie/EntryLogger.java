@@ -482,6 +482,17 @@ public class EntryLogger {
         return recentlyCreatedEntryLogsStatus.getLeastUnflushedLogId();
     }
 
+    /**
+     * Get the last log id created so far. If entryLogPerLedger is enabled, the Garbage Collector
+     * process needs to look beyond the least unflushed entry log file, as there may be entry logs
+     * ready to be garbage collected.
+     *
+     * @return last entry log id created.
+     */
+    long getLastLogId() {
+        return recentlyCreatedEntryLogsStatus.getLastLogId();
+    }
+
     long getPreviousAllocatedEntryLogId() {
         return entryLoggerAllocator.getPreallocatedLogId();
     }
@@ -1248,6 +1259,10 @@ public class EntryLogger {
 
         synchronized long getLeastUnflushedLogId() {
             return leastUnflushedLogId;
+        }
+
+        synchronized long getLastLogId() {
+            return entryLogsStatusMap.lastKey();
         }
     }
 }
