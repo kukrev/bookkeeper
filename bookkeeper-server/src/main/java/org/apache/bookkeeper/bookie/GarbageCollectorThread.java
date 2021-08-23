@@ -588,6 +588,7 @@ public class GarbageCollectorThread extends SafeRunnable {
         // by 1 when the log fills up and we roll to a new one.
         long curLogId = entryLogger.getLeastUnflushedLogId();
         boolean hasExceptionWhenScan = false;
+        long initialScannedLogId = scannedLogId;
         for (long entryLogId = scannedLogId; entryLogId < curLogId; entryLogId++) {
             // Comb the current entry log file if it has not already been extracted.
             if (entryLogMetaMap.containsKey(entryLogId)) {
@@ -624,7 +625,23 @@ public class GarbageCollectorThread extends SafeRunnable {
                 ++scannedLogId;
             }
         }
+        // Check if we need to unblock GC by flushing curLogId when EntryLogPerLedger is enabled.
+        flushRotatedEntryLogIfNeeded(curLogId, scannedLogId - initialScannedLogId > 0);
         return entryLogMetaMap;
+    }
+
+    /**
+     * When EntryLogPerLedger is enabled, multiple ledgers may write data at different rates.
+     * As the GC thread removes entry logs sequentially by ID, a slow-growing entry log may
+     * block the progress of GC, while other entry logs continue to fill up the ledger drive.
+     * In this case, we force flushing the current un-flushed entry log to unblock GC.
+     */
+    private void flushRotatedEntryLogIfNeeded(long curLogId, boolean entryLogsDeletedByGC) {
+        boolean emptyFilledLedgerDirs = entryLogger.getLedgerDirsManager().getFullFilledLedgerDirs().isEmpty();
+        if (conf.isEntryLogPerLedgerEnabled() && !entryLogsDeletedByGC && !emptyFilledLedgerDirs) {
+            LOG.warn("Forcing flush of entryLogId {} as it may be blocking GC progress.", curLogId);
+            entryLogger.recentlyCreatedEntryLogsStatus.flushRotatedEntryLog(curLogId);
+        }
     }
 
     CompactableLedgerStorage getLedgerStorage() {
