@@ -412,7 +412,9 @@ public class GarbageCollectorThread extends SafeRunnable {
 
         // Loop through all of the entry logs and remove the non-active ledgers.
         entryLogMetaMap.forEach((entryLogId, meta) -> {
+           LOG.info("ATTEMPTING TO DELETE entryLogId " + entryLogId);
            removeIfLedgerNotExists(meta);
+           LOG.info("METADATA OF entryLogId " + entryLogId + " IS EMPTY? " + meta.isEmpty());
            if (meta.isEmpty()) {
                // This means the entry log is not associated with any active ledgers anymore.
                // We can remove this entry log file now.
@@ -590,15 +592,25 @@ public class GarbageCollectorThread extends SafeRunnable {
         Supplier<Long> finalEntryLog = () -> conf.isEntryLogPerLedgerEnabled() ? entryLogger.getLastLogId() :
                 entryLogger.getLeastUnflushedLogId();
         boolean hasExceptionWhenScan = false;
+        LOG.info("EXTRACTING META FROM ENTRY LOGS: initialEntryLog {}, finalEntryLog {}", scannedLogId, finalEntryLog.get());
         for (long entryLogId = scannedLogId; entryLogId < finalEntryLog.get(); entryLogId++) {
             // Comb the current entry log file if it has not already been extracted.
             if (entryLogMetaMap.containsKey(entryLogId)) {
+                LOG.info("entryLogId {} already in metadata", entryLogId);
                 continue;
             }
 
             // check whether log file exists or not
             // if it doesn't exist, this log file might have been garbage collected.
             if (!entryLogger.logExists(entryLogId)) {
+                LOG.info("entryLogId {} not in storage, maybe already deleted", entryLogId);
+                continue;
+            }
+
+            // If entryLogPerLedgerEnabled is true, we will look for entry log files beyond getLeastUnflushedLogId().
+            // However, we will only consider for garbage collection the ones that have been rotated.
+            if (conf.isEntryLogPerLedgerEnabled() && !entryLogger.isFlushedEntryLog(entryLogId)) {
+                LOG.info("entryLogId {} not flushed when entryLogPerLedgerEnabled", entryLogId);
                 continue;
             }
 

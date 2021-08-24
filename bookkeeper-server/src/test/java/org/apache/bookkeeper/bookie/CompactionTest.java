@@ -592,6 +592,64 @@ public abstract class CompactionTest extends BookKeeperClusterTestCase {
     }
 
     @Test
+    public void testMinorCompactionWithEntryLogPerLedgerEnabled() throws Exception {
+        // disable major compaction
+        baseConf.setMajorCompactionThreshold(0.0f);
+        baseConf.setGcWaitTime(60000);
+        baseConf.setMinorCompactionInterval(120000);
+        baseConf.setMajorCompactionInterval(240000);
+        baseConf.setEntryLogPerLedgerEnabled(true);
+
+        // restart bookies
+        restartBookies(baseConf);
+
+        // prepare data
+        LedgerHandle[] lhs = prepareData(3, false);
+
+        for (LedgerHandle lh : lhs) {
+            lh.close();
+        }
+
+        long lastMinorCompactionTime = getGCThread().lastMinorCompactionTime;
+        long lastMajorCompactionTime = getGCThread().lastMajorCompactionTime;
+        assertFalse(getGCThread().enableMajorCompaction);
+        assertTrue(getGCThread().enableMinorCompaction);
+
+        for (BookieServer bookieServer : bs) {
+            Bookie bookie = bookieServer.getBookie();
+            LedgerDirsManager ledgerDirsManager = bookie.getLedgerDirsManager();
+            List<File> ledgerDirs = ledgerDirsManager.getAllLedgerDirs();
+            // if all the disks are full then Major and Minor compaction would be disabled since
+            // 'isForceGCAllowWhenNoSpace' is not enabled. Check LedgerDirsListener of interleavedLedgerStorage.
+            for (File ledgerDir : ledgerDirs) {
+                ledgerDirsManager.addToFilledDirs(ledgerDir);
+            }
+        }
+
+        // remove ledgers 1 and 2
+        bkc.deleteLedger(lhs[1].getId());
+        bkc.deleteLedger(lhs[2].getId());
+
+        LOG.info("Finished deleting the ledgers contains most entries.");
+        getGCThread().triggerGC(true, false, false).get();
+
+        // after garbage collection, major compaction should not be executed
+        assertEquals(lastMajorCompactionTime, getGCThread().lastMajorCompactionTime);
+        assertTrue(getGCThread().lastMinorCompactionTime > lastMinorCompactionTime);
+
+        // entry logs 0.log should still remain, as the ledger has not been deleted. The rest of entry log
+        // files should have been deleted.
+        assertTrue(
+                "Entry log file 0.log is not available, which is not expected " + tmpDirs.get(0),
+                TestUtils.hasLogFiles(tmpDirs.get(0), false, 0));
+        for (File ledgerDirectory : tmpDirs) {
+            assertFalse(
+                    "Entry log files ([1,2,3,4].log are available, which is not expected" + ledgerDirectory,
+                    TestUtils.hasLogFiles(ledgerDirectory, false, 1, 2, 3, 4));
+        }
+    }
+
+    @Test
     public void testMinorCompactionWithNoWritableLedgerDirsButIsForceGCAllowWhenNoSpaceIsSet() throws Exception {
         stopAllBookies();
         ServerConfiguration conf = newServerConfiguration();
@@ -654,12 +712,12 @@ public abstract class CompactionTest extends BookKeeperClusterTestCase {
         assertEquals(lastMajorCompactionTime, getGCThread().lastMajorCompactionTime);
         assertTrue(getGCThread().lastMinorCompactionTime > lastMinorCompactionTime);
 
-        // though all discs are added to filled dirs list, compaction would succeed, because in EntryLogger for
+        // though all disks are added to filled dirs list, compaction would succeed, because in EntryLogger for
         // allocating newlog
         // we get getWritableLedgerDirsForNewLog() of ledgerDirsManager instead of getWritableLedgerDirs()
         // entry logs ([0,1,2].log) should be compacted.
         for (File ledgerDirectory : server.getBookie().getLedgerDirsManager().getAllLedgerDirs()) {
-            assertFalse("Found entry log file ([0,1,2].log that should have not been compacted in ledgerDirectory: "
+            assertFalse("Found entry log file ([0,1,2].log that should have been compacted in ledgerDirectory: "
                     + ledgerDirectory, TestUtils.hasLogFiles(ledgerDirectory.getParentFile(), true, 0, 1, 2));
         }
 

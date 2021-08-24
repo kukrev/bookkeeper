@@ -493,6 +493,16 @@ public class EntryLogger {
         return recentlyCreatedEntryLogsStatus.getLastLogId();
     }
 
+    /**
+     * Returns whether the current log id exists and has been rotated already.
+     *
+     * @param entryLogId EntryLog id to check.
+     * @return Whether the given entryLogId exists and has been rotated.
+     */
+    boolean isFlushedEntryLog(Long entryLogId) {
+        return recentlyCreatedEntryLogsStatus.isFlushedEntryLog(entryLogId);
+    }
+
     long getPreviousAllocatedEntryLogId() {
         return entryLoggerAllocator.getPreallocatedLogId();
     }
@@ -1262,7 +1272,11 @@ public class EntryLogger {
         }
 
         synchronized long getLastLogId() {
-            return entryLogsStatusMap.lastKey();
+            return !entryLogsStatusMap.isEmpty() ? entryLogsStatusMap.lastKey() : 0;
+        }
+
+        synchronized boolean isFlushedEntryLog(Long entryLogId) {
+            return entryLogsStatusMap.containsKey(entryLogId) && entryLogsStatusMap.get(entryLogId);
         }
     }
 }
