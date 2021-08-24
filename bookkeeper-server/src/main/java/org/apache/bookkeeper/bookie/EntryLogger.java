@@ -1276,7 +1276,8 @@ public class EntryLogger {
         }
 
         synchronized boolean isFlushedEntryLog(Long entryLogId) {
-            return entryLogsStatusMap.containsKey(entryLogId) && entryLogsStatusMap.get(entryLogId);
+            return entryLogsStatusMap.containsKey(entryLogId) && entryLogsStatusMap.get(entryLogId)
+                    || entryLogId < leastUnflushedLogId;
         }
     }
 }

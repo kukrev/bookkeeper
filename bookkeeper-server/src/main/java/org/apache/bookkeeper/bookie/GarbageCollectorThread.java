@@ -592,25 +592,25 @@ public class GarbageCollectorThread extends SafeRunnable {
         Supplier<Long> finalEntryLog = () -> conf.isEntryLogPerLedgerEnabled() ? entryLogger.getLastLogId() :
                 entryLogger.getLeastUnflushedLogId();
         boolean hasExceptionWhenScan = false;
-        LOG.info("EXTRACTING META FROM ENTRY LOGS: initialEntryLog {}, finalEntryLog {}", scannedLogId, finalEntryLog.get());
+        LOG.info("extractMetaFromEntryLogs: initialEntryLog {}, finalEntryLog {}", scannedLogId, finalEntryLog.get());
         for (long entryLogId = scannedLogId; entryLogId < finalEntryLog.get(); entryLogId++) {
             // Comb the current entry log file if it has not already been extracted.
             if (entryLogMetaMap.containsKey(entryLogId)) {
-                LOG.info("entryLogId {} already in metadata", entryLogId);
+                LOG.info("extractMetaFromEntryLogs: entryLogId {} already in metadata", entryLogId);
                 continue;
             }
 
             // check whether log file exists or not
             // if it doesn't exist, this log file might have been garbage collected.
             if (!entryLogger.logExists(entryLogId)) {
-                LOG.info("entryLogId {} not in storage, maybe already deleted", entryLogId);
+                LOG.info("extractMetaFromEntryLogs: entryLogId {} not in storage, maybe already deleted", entryLogId);
                 continue;
             }
 
-            // If entryLogPerLedgerEnabled is true, we will look for entry log files beyond getLeastUnflushedLogId().
-            // However, we will only consider for garbage collection the ones that have been rotated.
+            // If entryLogPerLedgerEnabled is true, we will look for entry log files beyond getLeastUnflushedLogId()
+            // that have been explicitly rotated or below getLeastUnflushedLogId().
             if (conf.isEntryLogPerLedgerEnabled() && !entryLogger.isFlushedEntryLog(entryLogId)) {
-                LOG.info("entryLogId {} not flushed when entryLogPerLedgerEnabled", entryLogId);
+                LOG.info("extractMetaFromEntryLogs: entryLogId {} not flushed when entryLogPerLedgerEnabled", entryLogId);
                 continue;
             }
 
@@ -634,8 +634,9 @@ public class GarbageCollectorThread extends SafeRunnable {
             // if scan failed on some entry log, we don't move 'scannedLogId' to next id
             // if scan succeed, we don't need to scan it again during next gc run,
             // we move 'scannedLogId' to next id
-            if (!hasExceptionWhenScan) {
+            if (!hasExceptionWhenScan && (!conf.isEntryLogPerLedgerEnabled() || (entryLogId == scannedLogId))) {
                 ++scannedLogId;
+                LOG.info("extractMetaFromEntryLogs: Incrementing scannedLogId {}", scannedLogId);
             }
         }
         return entryLogMetaMap;
